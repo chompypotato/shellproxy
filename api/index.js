@@ -1,29 +1,33 @@
 import express from 'express';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import serverless from 'serverless-http';
+import fetch from 'node-fetch';
 
 const app = express();
 
-app.use('/', createProxyMiddleware({
-  target: 'https://shellshock.io',
-  changeOrigin: true,
-  selfHandleResponse: true, // we'll handle the response manually
-  onProxyRes: (proxyRes, req, res) => {
-    const body = [];
-    proxyRes.on('data', chunk => {
-      body.push(chunk);
+app.get('*', async (req, res) => {
+  try {
+    // Construct the target URL based on the incoming request URL.
+    const targetUrl = 'https://shellshock.io' + req.originalUrl;
+    
+    // Fetch the target URL and wait for the complete response.
+    const response = await fetch(targetUrl);
+    const bodyBuffer = await response.buffer();
+
+    // Copy over headers except transfer-encoding.
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'transfer-encoding') {
+        res.setHeader(key, value);
+      }
     });
-    proxyRes.on('end', () => {
-      const buffer = Buffer.concat(body);
-      res.removeHeader('transfer-encoding');
-      res.setHeader('Content-Length', buffer.length);
-      res.end(buffer);
-    });
-  },
-  onError: (err, req, res) => {
+    // Ensure a fixed Content-Length header.
+    res.setHeader('Content-Length', bodyBuffer.length);
+
+    // Set the response status code and send the buffered response.
+    res.status(response.status).send(bodyBuffer);
+  } catch (err) {
     console.error('Proxy error:', err);
     res.status(500).send('Proxy error: ' + err.message);
   }
-}));
+});
 
 export default serverless(app);
