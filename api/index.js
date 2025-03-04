@@ -1,14 +1,17 @@
-const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const serverless = require('serverless-http');
+import express from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import serverless from 'serverless-http';
 
 const app = express();
 
-// Forward all requests to Shell Shockers
 app.use('/', createProxyMiddleware({
   target: 'https://shellshock.io',
   changeOrigin: true,
-  followRedirects: true
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.status(500).send('Proxy error: ' + err.message);
+  }
 }));
 
-module.exports.handler = serverless(app);
+// Export the wrapped Express app as the default export.
+export default serverless(app);
