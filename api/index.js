@@ -1,21 +1,20 @@
-const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const serverless = require('serverless-http');
+import express from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import serverless from 'serverless-http';
 
 const app = express();
 
 app.use('/', createProxyMiddleware({
   target: 'https://shellshock.io',
   changeOrigin: true,
-  selfHandleResponse: true, // We'll manually handle the response
+  selfHandleResponse: true, // we'll handle the response manually
   onProxyRes: (proxyRes, req, res) => {
-    let body = [];
+    const body = [];
     proxyRes.on('data', chunk => {
       body.push(chunk);
     });
     proxyRes.on('end', () => {
       const buffer = Buffer.concat(body);
-      // Remove the transfer-encoding header if set
       res.removeHeader('transfer-encoding');
       res.setHeader('Content-Length', buffer.length);
       res.end(buffer);
@@ -27,5 +26,4 @@ app.use('/', createProxyMiddleware({
   }
 }));
 
-// Export the wrapped app as the default export for serverless-http.
-module.exports = { default: serverless(app) };
+export default serverless(app);
